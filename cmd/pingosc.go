@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -49,4 +51,31 @@ func main() {
 		fmt.Println("Please specify at least one host entry")
 		os.Exit(1)
 	}
+
+	quit := make(chan struct{})
+
+	// Catch ctrl+c
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+	go func() {
+		<-sig
+		close(quit)
+	}()
+
+	ticker := time.NewTicker(time.Duration(config.PingIntervalSeconds) * time.Second)
+	for {
+		pingHosts()
+
+		select {
+		case <-ticker.C:
+			continue
+		case <-quit:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+func pingHosts() {
+	fmt.Print(".")
 }

@@ -9,6 +9,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type eosConsole struct {
+	Addr string `yaml:"ip"`
+	Port uint   `yaml:"port"`
+}
+
 type host struct {
 	Name  string `yaml:"name"`
 	Addr  string `yaml:"ip"`
@@ -17,8 +22,9 @@ type host struct {
 }
 
 type appConfig struct {
-	PingIntervalSeconds uint   `yaml:"pingInterval"`
-	Hosts               []host `yaml:"hosts"`
+	PingIntervalSeconds uint       `yaml:"pingInterval"`
+	Console             eosConsole `yaml:"eosConsole"`
+	Hosts               []host     `yaml:"hosts"`
 }
 
 var config appConfig

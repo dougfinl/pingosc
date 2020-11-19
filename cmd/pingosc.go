@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-ping/ping"
+	"github.com/hypebeast/go-osc/osc"
 	"gopkg.in/yaml.v2"
 )
 
@@ -15,18 +16,19 @@ const (
 	pingResponseTimeout = 5 * time.Second
 	pingPacketInterval  = 1 * time.Second
 	packetLossThreshold = 50
+	hostOfflineText     = "offline"
+	hostOnlineText      = "online"
 )
 
 type eosConsole struct {
 	Addr string `yaml:"ip"`
-	Port uint   `yaml:"port"`
+	Port int    `yaml:"port"`
 }
 
 type host struct {
-	Name  string `yaml:"name"`
-	Addr  string `yaml:"ip"`
-	OscUp string `yaml:"oscUp"`
-	OscDn string `yaml:"oscDn"`
+	Name    string `yaml:"name"`
+	Addr    string `yaml:"ip"`
+	OscAddr string `yaml:"osc"`
 
 	pinger *ping.Pinger
 	isUp   bool
@@ -78,6 +80,7 @@ func main() {
 			createPingers(config.Hosts)
 			runPingers(config.Hosts)
 			printResults(config.Hosts)
+			sendResults(config.Hosts, config.Console.Addr, config.Console.Port)
 
 			select {
 			case <-ticker.C:
@@ -145,6 +148,23 @@ func runPingers(hosts []host) {
 	for i := range hosts {
 		addr := hosts[i].Addr
 		hosts[i].isUp = results[addr]
+	}
+}
+
+func sendResults(hosts []host, rAddr string, rPort int) {
+	c := osc.NewClient(rAddr, rPort)
+
+	for _, host := range hosts {
+		msg := osc.NewMessage(host.OscAddr)
+		if host.isUp {
+			msg.Append(hostOnlineText)
+		} else {
+			msg.Append(hostOfflineText)
+		}
+
+		if err := c.Send(msg); err != nil {
+			fmt.Printf("failed to send result to %s\n", host.Name)
+		}
 	}
 }
 

@@ -115,6 +115,7 @@ func createPingers(hosts []host) []ping.Pinger {
 		pinger.Interval = pingPacketInterval
 		pinger.Count = 3
 		pinger.Timeout = pingResponseTimeout
+		// pinger.SetPrivileged(true)
 	}
 
 	return pingers
@@ -125,22 +126,30 @@ func runPingers(hosts []host) {
 	var mu sync.Mutex
 	results := make(map[string]bool)
 
-	for _, host := range hosts {
-		if host.pinger == nil {
+	for _, h := range hosts {
+		if h.pinger == nil {
 			fmt.Println("pinger is null")
 			continue
 		}
 
-		host.pinger.OnFinish = func(stats *ping.Statistics) {
+		wg.Add(1)
+
+		go func(h host, wg *sync.WaitGroup) {
+			defer wg.Done()
+
+			err := h.pinger.Run()
+			if err != nil {
+				fmt.Printf("failed to ping host %s\n", h.Addr)
+				return
+			}
+
+			stats := h.pinger.Statistics()
 			isUp := stats.PacketLoss <= packetLossThreshold
+
 			mu.Lock()
 			results[stats.Addr] = isUp
 			mu.Unlock()
-			wg.Done()
-		}
-
-		wg.Add(1)
-		go host.pinger.Run()
+		}(h, &wg)
 	}
 
 	wg.Wait()

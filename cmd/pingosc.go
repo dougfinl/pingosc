@@ -20,7 +20,7 @@ const (
 	hostOnlineText      = "online"
 )
 
-type eosConsole struct {
+type addrPort struct {
 	Addr string `yaml:"ip"`
 	Port int    `yaml:"port"`
 }
@@ -36,7 +36,7 @@ type host struct {
 
 type appConfig struct {
 	PingIntervalSeconds uint       `yaml:"pingInterval"`
-	Console             eosConsole `yaml:"eosConsole"`
+	ReportTargets       []addrPort `yaml:"reportTargets"`
 	Hosts               []host     `yaml:"hosts"`
 }
 
@@ -80,7 +80,7 @@ func main() {
 			createPingers(config.Hosts)
 			runPingers(config.Hosts)
 			printResults(config.Hosts)
-			sendResults(config.Hosts, config.Console.Addr, config.Console.Port)
+			sendResults(config.Hosts, config.ReportTargets)
 
 			select {
 			case <-ticker.C:
@@ -160,19 +160,21 @@ func runPingers(hosts []host) {
 	}
 }
 
-func sendResults(hosts []host, rAddr string, rPort int) {
-	c := osc.NewClient(rAddr, rPort)
+func sendResults(hosts []host, targets []addrPort) {
+	for _, t := range targets {
+		c := osc.NewClient(t.Addr, t.Port)
 
-	for _, host := range hosts {
-		msg := osc.NewMessage(host.OscAddr)
-		if host.isUp {
-			msg.Append(hostOnlineText)
-		} else {
-			msg.Append(hostOfflineText)
-		}
+		for _, host := range hosts {
+			msg := osc.NewMessage(host.OscAddr)
+			if host.isUp {
+				msg.Append(hostOnlineText)
+			} else {
+				msg.Append(hostOfflineText)
+			}
 
-		if err := c.Send(msg); err != nil {
-			fmt.Printf("failed to send result to %s\n", host.Name)
+			if err := c.Send(msg); err != nil {
+				fmt.Printf("failed to send result to %v:%v\n", t.Addr, t.Port)
+			}
 		}
 	}
 }

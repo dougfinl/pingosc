@@ -9,10 +9,12 @@ import (
 
 	"github.com/go-ping/ping"
 	"github.com/hypebeast/go-osc/osc"
-	"gopkg.in/yaml.v2"
+	"github.com/spf13/viper"
 )
 
 const (
+	defaultIntervalSeconds = 10
+
 	pingResponseTimeout = 5 * time.Second
 	pingPacketInterval  = 1 * time.Second
 	packetLossThreshold = 50
@@ -21,23 +23,23 @@ const (
 )
 
 type addrPort struct {
-	Addr string `yaml:"ip"`
-	Port int    `yaml:"port"`
+	Addr string `mapstructure:"ip"`
+	Port int
 }
 
 type host struct {
-	Name    string `yaml:"name"`
-	Addr    string `yaml:"ip"`
-	OscAddr string `yaml:"osc"`
+	Name    string
+	Addr    string `mapstructure:"ip"`
+	OscAddr string `mapstructure:"osc"`
 
 	pinger *ping.Pinger
 	isUp   bool
 }
 
 type appConfig struct {
-	PingIntervalSeconds uint       `yaml:"pingInterval"`
-	ReportTargets       []addrPort `yaml:"reportTargets"`
-	Hosts               []host     `yaml:"hosts"`
+	PingIntervalSeconds uint `mapstructure:"pingInterval"`
+	ReportTargets       []addrPort
+	Hosts               []host
 }
 
 func main() {
@@ -46,22 +48,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	configFile, err := os.Open(os.Args[1])
+	viper.SetConfigType("yaml")
+	viper.SetConfigFile(os.Args[1])
+	viper.SetDefault("pingInterval", defaultIntervalSeconds)
+	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Printf("Failed to load config %v\n", err)
-		os.Exit(1)
+		panic(fmt.Errorf("syntax error in config file: %s", err))
 	}
 
-	defer configFile.Close()
-
-	decoder := yaml.NewDecoder(configFile)
-	decoder.SetStrict(true)
-
-	var config appConfig
-	err = decoder.Decode(&config)
+	config := &appConfig{}
+	err = viper.UnmarshalExact(&config)
 	if err != nil {
-		fmt.Printf("Failed to parse config: %v\n", err)
-		os.Exit(1)
+		panic(fmt.Errorf("error in config file: %s", err))
 	}
 
 	if len(config.Hosts) == 0 {

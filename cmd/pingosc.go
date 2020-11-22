@@ -43,14 +43,21 @@ type appConfig struct {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("config file must be specified")
-		os.Exit(1)
+	viper.SetConfigName("pingosc.yml")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("$HOME/.pingosc")
+	viper.AddConfigPath(".")
+
+	// Configuration defaults
+	viper.SetDefault("pingInterval", defaultIntervalSeconds)
+
+	nArgs := len(os.Args)
+	if nArgs == 2 {
+		viper.SetConfigFile(os.Args[1])
+	} else if nArgs > 2 {
+		// Print usage
 	}
 
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile(os.Args[1])
-	viper.SetDefault("pingInterval", defaultIntervalSeconds)
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(fmt.Errorf("syntax error in config file: %s", err))
@@ -77,7 +84,7 @@ func main() {
 		for {
 			createPingers(config.Hosts)
 			runPingers(config.Hosts)
-			printResults(config.Hosts)
+			// printResults(config.Hosts)
 			sendResults(config.Hosts, config.ReportTargets)
 
 			select {

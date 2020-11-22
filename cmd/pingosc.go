@@ -113,7 +113,7 @@ func createPingers(hosts []host) []ping.Pinger {
 		pinger.Interval = pingPacketInterval
 		pinger.Count = 3
 		pinger.Timeout = pingResponseTimeout
-		// pinger.SetPrivileged(true)
+		pinger.SetPrivileged(true)
 	}
 
 	return pingers
